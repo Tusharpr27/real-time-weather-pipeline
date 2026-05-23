@@ -1,4 +1,4 @@
-﻿import axios, { AxiosInstance, AxiosError } from 'axios'
+import axios, { AxiosInstance, AxiosError } from 'axios'
 import type {
   WeatherData,
   Alert,
@@ -10,9 +10,12 @@ import type {
   ApiError,
 } from '@types'
 
+const apiURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+const cleanedBaseURL = apiURL.replace(/\/api\/?$/, '')
+
 // Create a shared axios instance for both internal and external use
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  baseURL: cleanedBaseURL,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -28,6 +31,9 @@ class APIClient {
     // Request interceptor
     this.client.interceptors.request.use(
       (config) => {
+        if (config.url && config.url.startsWith('/') && !config.url.startsWith('/api')) {
+          config.url = `/api${config.url}`
+        }
         const token = localStorage.getItem('auth_token')
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
