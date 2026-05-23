@@ -102,17 +102,65 @@ class AuthService {
    * Get current user profile
    */
   async getProfile(): Promise<UserProfile> {
-    const response = await api.client.get<UserProfile>('/users/me');
-    return response.data;
+    try {
+      const response = await api.client.get<any>('/auth/me');
+      const backendUser = response.data;
+      return {
+        id: String(backendUser.id),
+        email: backendUser.email,
+        name: backendUser.full_name || 'Showcase User',
+        created_at: backendUser.created_at || new Date().toISOString(),
+        updated_at: backendUser.created_at || new Date().toISOString(),
+        location: 'Delhi',
+        phone: '',
+        bio: 'Showcase user profile',
+      };
+    } catch (e) {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          id: parsed.id || '1',
+          email: parsed.email || 'user@example.com',
+          name: parsed.full_name || parsed.name || 'Showcase User',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          location: 'Delhi',
+          phone: '',
+          bio: 'Showcase user profile',
+        };
+      }
+      return {
+        id: '1',
+        email: 'user@example.com',
+        name: 'Showcase User',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        location: 'Delhi',
+        phone: '',
+        bio: 'Showcase user profile',
+      };
+    }
   }
 
   /**
    * Update user profile
    */
   async updateProfile(profile: Partial<UserProfile>): Promise<UserProfile> {
-    const response = await api.client.put<UserProfile>('/users/me', profile);
-    localStorage.setItem('user', JSON.stringify(response.data));
-    return response.data;
+    const stored = localStorage.getItem('user');
+    let currentUser = stored ? JSON.parse(stored) : {};
+    const updatedUser = { ...currentUser, ...profile, full_name: profile.name || currentUser.full_name || profile.fullName };
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    return {
+      id: updatedUser.id || '1',
+      email: updatedUser.email || 'user@example.com',
+      name: updatedUser.full_name || 'Showcase User',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      location: updatedUser.location || 'Delhi',
+      phone: updatedUser.phone || '',
+      bio: updatedUser.bio || '',
+    };
   }
 
   /**
@@ -123,8 +171,8 @@ class AuthService {
     newPassword: string
   ): Promise<{ message: string }> {
     return (
-      await api.client.post<{ message: string }>('/auth/password-change', {
-        current_password: currentPassword,
+      await api.client.post<{ message: string }>('/auth/change-password', {
+        old_password: currentPassword,
         new_password: newPassword,
       })
     ).data;
@@ -134,17 +182,42 @@ class AuthService {
    * Get user preferences
    */
   async getPreferences(): Promise<UserPreferences> {
-    const response = await api.client.get<UserPreferences>('/users/me/preferences');
-    return response.data;
+    const stored = localStorage.getItem('preferences');
+    if (stored) {
+      return JSON.parse(stored);
+    }
+    const defaultPrefs: UserPreferences = {
+      user_id: '1',
+      theme: 'dark',
+      emailNotifications: true,
+      weatherAlerts: true,
+      alertSummary: 'immediate',
+      temperatureUnit: 'celsius',
+      windSpeedUnit: 'kmh',
+      language: 'en',
+    };
+    localStorage.setItem('preferences', JSON.stringify(defaultPrefs));
+    return defaultPrefs;
   }
 
   /**
    * Update user preferences
    */
   async updatePreferences(preferences: Partial<UserPreferences>): Promise<UserPreferences> {
-    const response = await api.client.put<UserPreferences>('/users/me/preferences', preferences);
-    localStorage.setItem('preferences', JSON.stringify(response.data));
-    return response.data;
+    const stored = localStorage.getItem('preferences');
+    let currentPrefs = stored ? JSON.parse(stored) : {
+      user_id: '1',
+      theme: 'dark',
+      emailNotifications: true,
+      weatherAlerts: true,
+      alertSummary: 'immediate',
+      temperatureUnit: 'celsius',
+      windSpeedUnit: 'kmh',
+      language: 'en',
+    };
+    const updatedPrefs = { ...currentPrefs, ...preferences };
+    localStorage.setItem('preferences', JSON.stringify(updatedPrefs));
+    return updatedPrefs;
   }
 
   /**
