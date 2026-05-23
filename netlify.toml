@@ -1,0 +1,12 @@
+[build]
+  command = "cd frontend && npm ci && npm run build"
+  publish = "frontend/dist"
+
+[build.environment]
+# Set production environment variables here or via Netlify UI
+# VITE_API_URL = "https://your-api.example.com/api"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

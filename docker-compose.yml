@@ -1,0 +1,167 @@
+version: '3.9'
+
+# Docker Compose for Real-Time Weather Pipeline
+# Full stack: PostgreSQL, Redis, Weather API Application
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: weather_pipeline_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-weather_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-weather_password}
+      POSTGRES_DB: ${POSTGRES_DB:-weather_pipeline}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db_init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - weather_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-weather_user} -d ${POSTGRES_DB:-weather_pipeline}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: weather_pipeline_redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_password}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - weather_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  # Weather Pipeline API Application
+  app:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: weather_pipeline_app
+    environment:
+      # App Configuration
+      APP_ENV: ${APP_ENV:-production}
+      APP_NAME: "Real-Time Weather Pipeline"
+      API_HOST: "0.0.0.0"
+      API_PORT: ${API_PORT:-8000}
+      DEBUG: ${DEBUG:-False}
+      
+      # Database Configuration
+      DATABASE_URL: postgresql://${POSTGRES_USER:-weather_user}:${POSTGRES_PASSWORD:-weather_password}@postgres:5432/${POSTGRES_DB:-weather_pipeline}
+      
+      # Redis Configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password}
+      
+      # Weather API Configuration
+      WEATHER_API_PROVIDER: ${WEATHER_API_PROVIDER:-open-meteo}
+      WEATHER_API_KEY: ${WEATHER_API_KEY}
+      WEATHER_API_BASE_URL: ${WEATHER_API_BASE_URL:-https://api.open-meteo.com/v1}
+      
+      # Data Collection
+      FETCH_INTERVAL_MINUTES: ${FETCH_INTERVAL_MINUTES:-15}
+      LOCATIONS: ${LOCATIONS:-Delhi,Mumbai,Bangalore,Chennai,Kolkata}
+      
+      # Alert Configuration
+      ALERT_ENABLED: ${ALERT_ENABLED:-True}
+      TEMP_ALERT_HIGH: ${TEMP_ALERT_HIGH:-35}
+      TEMP_ALERT_LOW: ${TEMP_ALERT_LOW:--10}
+      
+      # Email Configuration
+      SMTP_SERVER: ${SMTP_SERVER:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      
+      # Phase 1.7: API Enhancement
+      WEBHOOKS_ENABLED: ${WEBHOOKS_ENABLED:-True}
+      EXPORT_ENABLED: ${EXPORT_ENABLED:-True}
+      REALTIME_ENABLED: ${REALTIME_ENABLED:-True}
+      
+      # Phase 1.8: Monitoring
+      PERFORMANCE_MONITORING_ENABLED: ${PERFORMANCE_MONITORING_ENABLED:-True}
+      HEALTH_CHECK_ENABLED: ${HEALTH_CHECK_ENABLED:-True}
+      ERROR_TRACKING_ENABLED: ${ERROR_TRACKING_ENABLED:-True}
+      AUDIT_LOGGING_ENABLED: ${AUDIT_LOGGING_ENABLED:-True}
+    
+    ports:
+      - "${API_PORT:-8000}:8000"
+    
+    volumes:
+      - ./logs:/app/logs
+      - ./archives:/app/archives
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    networks:
+      - weather_network
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${API_PORT:-8000}/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    restart: unless-stopped
+    
+    security_opt:
+      - no-new-privileges:true
+    
+    # Limit resource usage
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+# Network for service communication
+networks:
+  weather_network:
+    driver: bridge
+
+# Persistent volumes
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# Configuration
+# Usage:
+#   1. Create .env file with necessary variables
+#   2. Run: docker-compose up -d
+#   3. Check logs: docker-compose logs -f app
+#   4. Stop: docker-compose down
+#   5. Clean up: docker-compose down -v (removes volumes)

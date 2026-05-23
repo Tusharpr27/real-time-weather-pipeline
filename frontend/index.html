@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    
+    <!-- Viewport for responsive design -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes, maximum-scale=5" />
+    
+    <!-- PWA and Mobile Optimization -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0369a1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Weather Pipeline" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    
+    <!-- App Description -->
+    <meta name="description" content="Real-Time Weather Data Pipeline - Dashboard for monitoring weather data with real-time alerts and analytics" />
+    <meta name="keywords" content="weather, monitoring, analytics, real-time, dashboard" />
+    
+    <!-- Disable tap highlight on mobile -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    
+    <!-- iOS specific -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    
+    <title>Weather Pipeline Dashboard</title>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- Fallback shown when JavaScript is disabled or fails to run -->
+    <noscript>
+      <style>
+        .noscript-fallback { padding: 24px; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial; background:#fff; color:#111827 }
+      </style>
+      <div class="noscript-fallback">
+        <h2>JavaScript required</h2>
+        <p>This application requires JavaScript to run. Please enable JavaScript in your browser and reload the page.</p>
+        <p>If you still see a blank page after enabling JavaScript, try clearing the browser cache or opening the app in a private/incognito window.</p>
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

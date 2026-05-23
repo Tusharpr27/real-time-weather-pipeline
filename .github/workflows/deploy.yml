@@ -1,0 +1,142 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment || 'production' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set deployment environment
+        id: deployment
+        run: |
+          if [[ "${{ github.ref }}" == "refs/tags/"* ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "target_url=${{ secrets.PROD_DEPLOY_URL }}" >> $GITHUB_OUTPUT
+          else
+            echo "environment=${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_OUTPUT
+            if [ "${{ github.event.inputs.environment }}" == "staging" ]; then
+              echo "target_url=${{ secrets.STAGING_DEPLOY_URL }}" >> $GITHUB_OUTPUT
+            else
+              echo "target_url=${{ secrets.PROD_DEPLOY_URL }}" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Create deployment
+        uses: actions/github-script@v6
+        id: deployment_create
+        with:
+          script: |
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.ref,
+              environment: '${{ steps.deployment.outputs.environment }}',
+              auto_merge: false,
+              required_contexts: [],
+              description: 'Automated deployment triggered by GitHub Actions'
+            });
+            return deployment.data.id;
+
+      - name: Deploy via webhook
+        run: |
+          echo "Deploying to ${{ steps.deployment.outputs.environment }}"
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.DEPLOY_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"ref":"${{ github.sha }}","environment":"${{ steps.deployment.outputs.environment }}"}' \
+            ${{ steps.deployment.outputs.target_url }}
+
+      - name: Update deployment status - In Progress
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment_create.outputs.result }},
+              state: 'in_progress',
+              description: 'Deployment in progress...'
+            });
+
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for deployment to complete..."
+          sleep 30
+
+      - name: Verify deployment health
+        run: |
+          echo "Verifying deployment health..."
+          for i in {1..10}; do
+            if curl -f ${{ steps.deployment.outputs.target_url }}/health > /dev/null 2>&1; then
+              echo "✅ Deployment health check passed"
+              exit 0
+            fi
+            echo "Attempt $i/10 failed, retrying..."
+            sleep 5
+          done
+          echo "❌ Deployment health check failed"
+          exit 1
+
+      - name: Update deployment status - Success
+        if: success()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment_create.outputs.result }},
+              state: 'success',
+              description: 'Deployment completed successfully',
+              environment_url: '${{ steps.deployment.outputs.target_url }}'
+            });
+
+      - name: Update deployment status - Failure
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment_create.outputs.result }},
+              state: 'failure',
+              description: 'Deployment failed'
+            });
+
+      - name: Notify on Success
+        if: success()
+        run: |
+          echo "✅ Successfully deployed to ${{ steps.deployment.outputs.environment }}"
+          echo "URL: ${{ steps.deployment.outputs.target_url }}"
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "❌ Deployment to ${{ steps.deployment.outputs.environment }} failed"
+          exit 1

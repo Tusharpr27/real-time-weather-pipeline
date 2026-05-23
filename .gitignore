@@ -1,0 +1,58 @@
+# Python Virtual Environments
+backend/venv/
+backend/env/
+backend/ENV/
+backend/.venv/
+venv/
+.venv/
+
+# Node dependencies
+frontend/node_modules/
+node_modules/
+
+# Frontend builds
+frontend/dist/
+frontend/dist-ssr/
+dist/
+
+# Local databases
+backend/*.db
+backend/*.sqlite
+backend/*.sqlite3
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment configurations and secrets
+.env
+.env.*
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# IDE / Editor configuration
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+Thumbs.db
+
+# Logs and caches
+backend/logs/
+logs/
+*.log
+.pytest_cache/
+frontend/coverage/
+.cache/
+.eslintcache
+.stylelintcache
+
+# Temporary workspace items
+.gemini/
+tmp/
+temp/
+*.tmp
+*.temp
