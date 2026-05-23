@@ -21,7 +21,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy requirements
 WORKDIR /build
-COPY requirements.txt .
+COPY backend/requirements.txt .
 
 # Install Python dependencies into venv
 RUN pip install --upgrade pip setuptools wheel && \
